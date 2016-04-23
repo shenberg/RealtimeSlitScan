@@ -37,8 +37,10 @@ void ofApp::setup(){
     
     GL_CHECK(glBindTexture(GL_TEXTURE_3D, texture3d));
     
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+//    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+//    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -88,6 +90,55 @@ void ofApp::update(){
     cameraWriter.end();
 }
 
+static float triangle(float t) {
+    float s = fmod(t,2);
+    return min(s, 2-s);
+}
+
+static void drawRect(int x, int y, int w, int h, int vertexCount, float startOffset, float endOffset, float rotateAngle) {
+    // draw using raw OpenGL since ofx doesn't let us use 3d texture coordinates
+
+    ofMatrix4x4 rotation;
+    rotation.translate(-0.5,-0.5,0);
+    rotation.rotate(rotateAngle, 0, 0, 1);
+    rotation.translate(0.5, 0.5, 0);
+    ofVec3f pt(0);
+    for (int row = 0; row < vertexCount - 1; row++) {
+        float py = ofMap(row, 0, vertexCount - 1, y, y + h);
+        float py2 = ofMap(row + 1, 0, vertexCount - 1, y, y + h);
+        float u = ofMap(row, 0, vertexCount - 1, 0, 1);
+        float u2 = ofMap(row + 1, 0, vertexCount - 1, 0, 1);
+        glBegin(GL_TRIANGLE_STRIP);
+        
+        for(int col = 0; col < vertexCount; col++) {
+            float px = ofMap(col, 0, vertexCount - 1, x, x + w);
+            float t = ofMap(col, 0, vertexCount - 1, 0, 1);
+            // rotate (t,u,t) around Z axis through (0.5, 0.5, 0)
+            pt.x = t;
+            pt.y = u;
+            pt = rotation * pt;
+            float s = ofMap(triangle(pt.x), 0, 1, 0 + endOffset, 1 + startOffset);
+            pt.x = t;
+            pt.y = u2;
+            pt = rotation * pt;
+            float s2 = ofMap(triangle(pt.x), 0, 1, 0 + endOffset, 1 + startOffset);
+            glTexCoord3d(t, u, s);
+            glVertex2f(px, py);
+            glTexCoord3d(t, u2, s2);
+            glVertex2f(px, py2);
+        }
+        glEnd();
+    }
+    /*
+    glTexCoord3d(0, 0, 0 + endOffset);
+    glVertex2f(x, y);
+    glTexCoord3d(0, 1, 0 + startOffset);
+    glVertex2f(x, y + h);
+    glTexCoord3d(1, 0, 1 + endOffset);
+    glVertex2f(x + w, y);
+    glTexCoord3d(1, 1, 1 + startOffset);
+    glVertex2f(x + w, y + h);*/
+}
 //--------------------------------------------------------------
 void ofApp::draw(){
     // we just wrote to layerIndex, so (layerIndex+1) % FRAMES is the oldest layer
@@ -95,19 +146,13 @@ void ofApp::draw(){
     float newestOffset = layerIndex / (float)FRAMES; // z-coordinate of last drawn frame
     float oldestOffset = (layerIndex + 1) / (float)FRAMES;
     
+    ofMatrix4x4 originalTextureMatrix = cameraOutput.getTextureMatrix();
+    
     cameraOutput.bind();
     // draw using raw OpenGL since ofx doesn't let us use 3d texture coordinates
-    glBegin(GL_TRIANGLE_STRIP);
-    glTexCoord3d(1, 0, 1 + newestOffset);
-    glVertex2f(ofGetWidth(), 0);
-    glTexCoord3d(1, 1, 1 + newestOffset);
-    glVertex2f(ofGetWidth(), ofGetHeight());
-    glTexCoord3d(0, 0, 0 + oldestOffset);
-    glVertex2f(0, 0);
-    glTexCoord3d(0, 1, 0 + oldestOffset);
-    glVertex2f(0, ofGetHeight());
-    glEnd();
+    drawRect(0, 0, ofGetWidth(), ofGetHeight(), 100, newestOffset, oldestOffset, fmod(ofGetElapsedTimef(), 360));
     cameraOutput.unbind();
+    cameraOutput.setTextureMatrix(originalTextureMatrix);
 }
 
 //--------------------------------------------------------------

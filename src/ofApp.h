@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ofMain.h"
+#include "ps3eye.h"
 
 class ofApp : public ofBaseApp{
 
@@ -26,4 +27,8 @@ private:
     ofFbo          cameraWriter;
     ofTexture      cameraOutput;
     int            layerIndex;
+    ps3eye::PS3EYECam::PS3EYERef eye = NULL;
+    unsigned char *		videoFrame;
+    ofTexture			videoTexture;
+
 };

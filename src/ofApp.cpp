@@ -228,6 +228,45 @@ static void drawRect(int x, int y, int w, int h, int vertexCount, float offset, 
         glEnd();
     }
 }
+
+static void drawRectCircularTime(int x, int y, int w, int h, int vertexCount, float offset) {
+    // draw using raw OpenGL since ofx doesn't let us use 3d texture coordinates
+    
+    ofVec3f pt(0);
+    for (int row = 0; row < vertexCount - 1; row++) {
+        float py = ofMap(row, 0, vertexCount - 1, y, y + h);
+        float py2 = ofMap(row + 1, 0, vertexCount - 1, y, y + h);
+        float u = ofMap(row, 0, vertexCount - 1, 0, 1);
+        float u2 = ofMap(row + 1, 0, vertexCount - 1, 0, 1);
+        float dySqr = (0.5 - u)*(0.5 - u);
+        float dy2Sqr = (0.5 - u2)*(0.5 - u2);
+        glBegin(GL_TRIANGLE_STRIP);
+        
+        for(int col = 0; col < vertexCount; col++) {
+            float px = ofMap(col, 0, vertexCount - 1, x, x + w);
+            float t = ofMap(col, 0, vertexCount - 1, 0, 1);
+            /*            // rotate (t,u,t) around Z axis through (0.5, 0.5, 0)
+             pt.x = t;
+             pt.y = u;
+             //pt = rotation * pt;
+             float s = ofMap(triangle(pt.y), 0, 1, 0 + endOffset, 1 + startOffset);
+             pt.x = t;
+             pt.y = u2;
+             //pt = rotation * pt;
+             float s2 = ofMap(triangle(pt.y), 0, 1, 0 + endOffset, 1 + startOffset);
+             */
+            float dx = 0.5 - ofMap(col, 0, vertexCount - 1, 0, 1);
+            float dxSqr = dx*dx;
+            // TODO: fix distance 0
+            float s = -dxSqr + -dySqr + offset, s2 = -dxSqr + -dy2Sqr + offset;
+            glTexCoord3d(t, u, s);
+            glVertex2f(px, py);
+            glTexCoord3d(t, u2, s2);
+            glVertex2f(px, py2);
+        }
+        glEnd();
+    }
+}
 //--------------------------------------------------------------
 void ofApp::draw(){
     // we just wrote to layerIndex, so (layerIndex+1) % FRAMES is the oldest layer
@@ -243,7 +282,8 @@ void ofApp::draw(){
     
     cameraOutput.bind();
     // draw using raw OpenGL since ofx doesn't let us use 3d texture coordinates
-    drawRect(0, 0, ofGetWidth(), ofGetHeight(), 100, oldestOffset, 0);// fmod(ofGetElapsedTimef(), 360));
+    //drawRect(0, 0, ofGetWidth(), ofGetHeight(), 100, oldestOffset, 0);// fmod(ofGetElapsedTimef(), 360));
+    drawRectCircularTime(0, 0, ofGetWidth(), ofGetHeight(), 100, newestOffset);// fmod(ofGetElapsedTimef(), 360));
     cameraOutput.unbind();
     cameraOutput.setTextureMatrix(originalTextureMatrix);
 }

@@ -112,7 +112,7 @@ void ofApp::setup(){
     cameraOutput.setUseExternalTextureID(texture3d);
     
     // set up camera & FBO to write to 3d texture
-    cameraIn.setup(WIDTH, HEIGHT);
+    
     cameraWriter.allocate(WIDTH, HEIGHT);
     cameraWriter.attachTexture(cameraOutput, GL_RGB, 0, layerIndex);
     
@@ -150,27 +150,32 @@ void ofApp::setup(){
     }
     catch (...) {
         ofLogError() << "Failed to open PS eye. Exception.";
+        eye = NULL;
+    }
+    if (eye == NULL) {
+        cameraIn.setup(WIDTH, HEIGHT);
     }
 
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
-    try {
-        uint8_t* new_pixels = eye->getFrame();
-        yuv422_to_rgba(new_pixels, eye->getRowBytes(), videoFrame, eye->getWidth(), eye->getHeight());
-        videoTexture.loadData(videoFrame, eye->getWidth(), eye->getHeight(), GL_RGBA);
-        free(new_pixels);
+    if (eye != NULL) {
+        try {
+            uint8_t* new_pixels = eye->getFrame();
+            yuv422_to_rgba(new_pixels, eye->getRowBytes(), videoFrame, eye->getWidth(), eye->getHeight());
+            videoTexture.loadData(videoFrame, eye->getWidth(), eye->getHeight(), GL_RGBA);
+            free(new_pixels);
+        }
+        catch (...) {
+            ofLogWarning("Can't open ps eye. exception. moving to kinect");
+        }
+    } else {
+        cameraIn.update();
+        if (!cameraIn.isFrameNew()) {
+            return;
+        }
     }
-    catch (...) {
-        ofLogWarning("Can't open ps eye. exception. moving to kinect");
-    }
-
-    /*
-    cameraIn.update();
-    if (!cameraIn.isFrameNew()) {
-        return;
-    }*/
     
     layerIndex = (layerIndex + 1) % FRAMES;
     // NOTE: I modified openframeworks for this to work (gl/ofFbo.h, gl/ofFbo.cpp)
@@ -181,8 +186,11 @@ void ofApp::update(){
     // instead of the usual glFramebufferTexture2D call
     cameraWriter.attachTexture(cameraOutput, GL_RGB, 0, layerIndex);
     cameraWriter.begin();
-    //cameraIn.draw(0,0,WIDTH,HEIGHT);
-    videoTexture.draw(0,0,WIDTH, HEIGHT);
+    if (eye != NULL) {
+        videoTexture.draw(0,0,WIDTH, HEIGHT);
+    } else {
+        cameraIn.draw(0,0,WIDTH,HEIGHT);
+    }
     cameraWriter.end();
 }
 
